@@ -1,0 +1,98 @@
+/*Query para a criação da view no banco de dados do GAL*/
+
+--criar a view
+
+CREATE OR REPLACE VIEW public.vw_exportar_dados_ers_caceres
+ AS
+ SELECT DISTINCT r.co_requisicao,
+    mp.co_municipio AS ibge,
+    mp.no_municipio AS no_municipio_residencia,
+    up.sg_uf AS sg_uf_residencia,
+    te.no_exame,
+    tm.no_metodo,
+    er.dt_cadastro,
+    ts.ds_status,
+    ((COALESCE(pl.ds_lpre, ''::character varying)::text || COALESCE(re.ds_resultado, ''::character varying::text)) || ' '::text) || COALESCE(ca.ds_unidade, ''::character varying)::text AS rs_geral
+   FROM th_bmh_status_exame se
+     JOIN tb_bmh_tipo_status ts ON ts.co_status = se.co_status
+     JOIN tb_bmh_exame_requisicao er ON er.co_seq_examereq = se.co_examereq
+     JOIN tb_bmh_amostra am ON er.co_amostra = am.co_seq_amostra
+     JOIN tb_bmh_tipo_exame te ON er.co_exame::text = te.co_exame::text
+     JOIN tb_bmh_tipo_metodologia tm ON tm.co_metodo::text = er.co_metodo::text
+     JOIN tb_bmh_requisicao r ON r.co_requisicao = am.co_requisicao
+     JOIN tb_bmh_paciente p ON p.co_requisicao = am.co_requisicao
+     JOIN tb_sus_municipio mp ON mp.co_municipio::text = p.co_municipio::text
+     JOIN tb_sus_uf up ON up.co_uf::text = mp.co_uf::text
+     LEFT JOIN tb_bmh_resultado re ON re.co_examereq = er.co_seq_examereq AND re.co_campo::text = 'resultado'::bpchar::text
+     LEFT JOIN tb_bmh_pretabelado_linha pl ON pl.co_pretab::text = re.co_pretab::text AND pl.co_lpre::text = re.co_lpre::text
+     LEFT JOIN tb_bmh_campo_exame ca ON re.co_exame::text = ca.co_exame::text AND re.co_metodo::text = ca.co_metodo::text AND ca.co_campo::text = 'resultado'::bpchar::text
+     LEFT JOIN rl_bmh_config_exame ce ON er.co_exame::text = ce.co_exame::text AND er.co_metodo::text = ce.co_metodo::text AND ce.co_labor::text = se.co_labor::text
+     LEFT JOIN tb_lab_bancada lb ON lb.co_seq_bancada = ce.co_bancada
+  WHERE se.tp_status = 'U'::bpchar AND te.no_exame::text = 'COVID-19, Biologia Molecular'::text AND ts.ds_status::text = 'Resultado Liberado'::text AND (mp.co_municipio::text = ANY (ARRAY['510125'::character varying, '510450'::character varying, '510715'::character varying, '510710'::character varying, '510395'::character varying, '510250'::character varying, '510343'::character varying, '510523'::character varying, '510720'::character varying, '510562'::character varying, '510775'::character varying, '510682'::character varying, '510330'::character varying, '510757'::character varying, '510336'::character varying, '510380'::character varying, '510675'::character varying, '510500'::character varying, '510550'::character varying, '510268'::character varying, '510618'::character varying, '510835'::character varying]::text[]));
+
+ALTER TABLE public.vw_exportar_dados_ers_caceres
+    OWNER TO postgres;
+COMMENT ON VIEW public.vw_exportar_dados_ers_caceres
+    IS 'Exportar dados para o cálculo de indicador COVID-19 pela vigilância sanitária do ERS de Cáceres.';
+
+--selecionar a view
+SELECT 
+	co_requisicao, 
+	ibge, 
+	no_municipio_residencia, 
+	sg_uf_residencia, 
+	no_exame, 
+	no_metodo, 
+	dt_cadastro, 
+	ds_status, 
+	rs_geral
+FROM public."vw_exportar_dados_ers_caceres"
+WHERE dt_cadastro BETWEEN '2021-02-08' AND '2021-02-12'
+ORDER BY co_requisicao ASC;
+
+
+
+----query para teste
+-- View: public.vw_exportar_dados_ers_caceres
+
+-- DROP VIEW public.vw_exportar_dados_ers_caceres;
+
+CREATE OR REPLACE VIEW public.vw_exportar_dados_ers_caceres
+ AS
+ SELECT DISTINCT r.co_requisicao,
+    mp.co_municipio AS ibge,
+    mp.no_municipio AS no_municipio_residencia,
+    up.sg_uf AS sg_uf_residencia,
+    te.no_exame,
+    tm.no_metodo,
+    er.dt_cadastro,
+    ts.ds_status,
+    ((COALESCE(pl.ds_lpre, ''::character varying)::text || COALESCE(re.ds_resultado, ''::character varying::text)) || ' '::text) || COALESCE(ca.ds_unidade, ''::character varying)::text AS rs_geral,
+	cm.no_municipio AS no_municipio_requisitante
+   FROM th_bmh_status_exame se
+     JOIN tb_bmh_tipo_status ts ON ts.co_status = se.co_status
+     JOIN tb_bmh_exame_requisicao er ON er.co_seq_examereq = se.co_examereq
+     JOIN tb_bmh_amostra am ON er.co_amostra = am.co_seq_amostra
+     JOIN tb_bmh_tipo_exame te ON er.co_exame::text = te.co_exame::text
+     JOIN tb_bmh_tipo_metodologia tm ON tm.co_metodo::text = er.co_metodo::text
+     JOIN tb_bmh_requisicao r ON r.co_requisicao = am.co_requisicao
+     JOIN tb_bmh_paciente p ON p.co_requisicao = am.co_requisicao
+     JOIN tb_sus_municipio mp ON mp.co_municipio::text = p.co_municipio::text
+     JOIN tb_sus_uf up ON up.co_uf::text = mp.co_uf::text
+	 JOIN tb_sus_cnes cn ON cn.co_cnes::text = r.co_cnes_requisitante::text
+	 JOIN tb_sus_municipio cm ON cm.co_municipio::text = cn.co_municipio::text
+     LEFT JOIN tb_bmh_resultado re ON re.co_examereq = er.co_seq_examereq AND re.co_campo::text = 'resultado'::bpchar::text
+     LEFT JOIN tb_bmh_pretabelado_linha pl ON pl.co_pretab::text = re.co_pretab::text AND pl.co_lpre::text = re.co_lpre::text
+     LEFT JOIN tb_bmh_campo_exame ca ON re.co_exame::text = ca.co_exame::text AND re.co_metodo::text = ca.co_metodo::text AND ca.co_campo::text = 'resultado'::bpchar::text
+     LEFT JOIN rl_bmh_config_exame ce ON er.co_exame::text = ce.co_exame::text AND er.co_metodo::text = ce.co_metodo::text AND ce.co_labor::text = se.co_labor::text
+     LEFT JOIN tb_lab_bancada lb ON lb.co_seq_bancada = ce.co_bancada
+  WHERE se.tp_status = 'U'::bpchar AND te.no_exame::text = 'COVID-19, Biologia Molecular'::text AND ts.ds_status::text = 'Resultado Liberado'::text AND (mp.co_municipio::text = ANY (ARRAY['510125'::character varying::text, '510450'::character varying::text, '510715'::character varying::text, '510710'::character varying::text, '510395'::character varying::text, '510250'::character varying::text, '510343'::character varying::text, '510523'::character varying::text, '510720'::character varying::text, '510562'::character varying::text, '510775'::character varying::text, '510682'::character varying::text, '510330'::character varying::text, '510757'::character varying::text, '510336'::character varying::text, '510380'::character varying::text, '510675'::character varying::text, '510500'::character varying::text, '510550'::character varying::text, '510268'::character varying::text, '510618'::character varying::text, '510835'::character varying::text]));
+
+ALTER TABLE public.vw_exportar_dados_ers_caceres
+    OWNER TO postgres;
+COMMENT ON VIEW public.vw_exportar_dados_ers_caceres
+    IS 'Exportar dados para o cálculo de indicador COVID-19 pela vigilância sanitária do ERS de Cáceres.';
+
+
+
+
